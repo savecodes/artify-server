@@ -27,6 +27,29 @@ app.get("/", (req, res) => {
 const run = async () => {
   try {
     await client.connect();
+
+    const db = client.db("artifyDB");
+    const artworksCCollection = db.collection("artworks");
+
+    // Get all artworks api
+    app.get("/all-artworks", async (req, res) => {
+      const result = await artworksCCollection.find().toArray();
+      res.send(result);
+    });
+
+    // Latest 6 Data Api
+    app.get("/latest-artworks", async (req, res) => {
+      const result = await artworksCCollection
+        .find()
+        .sort({
+          create_date: -1,
+        })
+        .limit(6)
+        .toArray();
+
+      res.send(result);
+    });
+
     await client.db("admin").command({ ping: 1 });
     console.log("You successfully connected to MongoDB!");
   } finally {
