@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { MongoClient, ServerApiVersion } from "mongodb";
+import { MongoClient, ObjectId, ServerApiVersion } from "mongodb";
 import dotenv from "dotenv";
 dotenv.config();
 const app = express();
@@ -48,6 +48,15 @@ const run = async () => {
         .toArray();
 
       res.send(result);
+    });
+
+    // Get single artworks by id for artworks details api
+    app.get("/artwork/:id", async (req, res) => {
+      const { id } = req.params;
+      const result = await artworksCCollection.findOne({
+        _id: new ObjectId(id),
+      });
+      res.send({ success: true, result });
     });
 
     // Add Artworks getting data from user
