@@ -50,6 +50,13 @@ const run = async () => {
       res.send(result);
     });
 
+    // Add Artworks getting data from user
+    app.post("/add-artworks", async (req, res) => {
+      const data = req.body;
+      const result = await artworksCCollection.insertOne(data);
+      res.send({ success: true, result });
+    });
+
     await client.db("admin").command({ ping: 1 });
     console.log("You successfully connected to MongoDB!");
   } finally {
