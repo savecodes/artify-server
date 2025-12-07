@@ -80,6 +80,15 @@ const run = async () => {
       res.send({ success: true, result });
     });
 
+    // Get single users artworks by id for artworks Delete api
+    app.delete("/my-gallery/:id", async (req, res) => {
+      const { id } = req.params;
+      const result = await artworksCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+      res.send({ success: true, result });
+    });
+
     // Get Users artworks by Email
     app.get("/my-gallery", async (req, res) => {
       const email = req.query.email;
