@@ -30,6 +30,7 @@ const run = async () => {
 
     const db = client.db("artifyDB");
     const artworksCollection = db.collection("artworks");
+    const favoritesCollection = db.collection("favorites");
 
     // Get all artworks api
     app.get("/all-artworks", async (req, res) => {
@@ -59,12 +60,85 @@ const run = async () => {
       res.send({ success: true, result });
     });
 
+    // Get Users artworks by Email
+    app.get("/my-gallery", async (req, res) => {
+      const email = req.query.email;
+      const result = await artworksCollection
+        .find({
+          artist_email: email,
+        })
+        .toArray();
+      res.send({ success: true, result });
+    });
+
     // Get single users artworks by id for artworks details api
     app.get("/my-gallery/:id", async (req, res) => {
       const { id } = req.params;
       const result = await artworksCollection.findOne({
         _id: new ObjectId(id),
       });
+      res.send({ success: true, result });
+    });
+
+    // Get Users artworks by Favorites
+    app.get("/my-favorites", async (req, res) => {
+      const email = req.query.email;
+
+      const favorites = await favoritesCollection
+        .find({ likes_by: email })
+        .toArray();
+
+      const artworkIds = favorites.map((item) => new ObjectId(item.artwork_id));
+
+      const artworks = await artworksCollection
+        .find({
+          _id: { $in: artworkIds },
+        })
+        .toArray();
+
+      res.send({ success: true, result: artworks });
+    });
+
+    // Check if artwork is in user's favorites
+    app.get("/favorites/check", async (req, res) => {
+      const { email, artwork_id } = req.query;
+
+      if (!email || !artwork_id) {
+        return res.send({ success: false, isFavorite: false });
+      }
+
+      const exists = await favoritesCollection.findOne({
+        artwork_id: artwork_id,
+        likes_by: email,
+      });
+
+      res.send({
+        success: true,
+        isFavorite: exists ? true : false,
+      });
+    });
+
+    // Add Artworks API
+    app.post("/add-artworks", async (req, res) => {
+      const newArtwork = req.body;
+      const result = await artworksCollection.insertOne(newArtwork);
+      res.send({ success: true, result });
+    });
+
+    // Add Artworks getting data from user
+    app.post("/favorites", async (req, res) => {
+      const { artwork_id, likes_by } = req.body;
+
+      const exists = await favoritesCollection.findOne({
+        artwork_id,
+        likes_by,
+      });
+
+      if (exists) {
+        return res.send({ success: false, message: "Already in favorites" });
+      }
+
+      const result = await favoritesCollection.insertOne(req.body);
       res.send({ success: true, result });
     });
 
@@ -80,30 +154,28 @@ const run = async () => {
       res.send({ success: true, result });
     });
 
+    // Remove from favorites
+    app.delete("/favorites", async (req, res) => {
+      const { email, artwork_id } = req.query;
+
+      const result = await favoritesCollection.deleteOne({
+        likes_by: email,
+        artwork_id: artwork_id,
+      });
+
+      if (result.deletedCount === 0) {
+        return res.send({ success: false, message: "Not found" });
+      }
+
+      res.send({ success: true });
+    });
+
     // Get single users artworks by id for artworks Delete api
     app.delete("/my-gallery/:id", async (req, res) => {
       const { id } = req.params;
       const result = await artworksCollection.deleteOne({
         _id: new ObjectId(id),
       });
-      res.send({ success: true, result });
-    });
-
-    // Get Users artworks by Email
-    app.get("/my-gallery", async (req, res) => {
-      const email = req.query.email;
-      const result = await artworksCollection
-        .find({
-          artist_email: email,
-        })
-        .toArray();
-      res.send({ success: true, result });
-    });
-
-    // Add Artworks getting data from user
-    app.post("/add-artworks", async (req, res) => {
-      const data = req.body;
-      const result = await artworksCollection.insertOne(data);
       res.send({ success: true, result });
     });
 
