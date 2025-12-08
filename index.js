@@ -1,6 +1,9 @@
 import express from "express";
 import cors from "cors";
 import { MongoClient, ObjectId, ServerApiVersion } from "mongodb";
+import admin from "firebase-admin";
+// import serviceAccount from "./artify-firebase-adminsdk.json" assert { type: "json" };
+import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config();
 const app = express();
@@ -8,6 +11,15 @@ const app = express();
 // middleware
 app.use(cors());
 app.use(express.json());
+
+
+// Firebase AdminSDK Config
+const serviceAccount = JSON.parse(
+  fs.readFileSync("./artify-firebase-adminsdk.json", "utf8")
+);
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 const port = process.env.PORT || 3000;
 const uri = process.env.MONGO_URI;
@@ -23,6 +35,12 @@ const client = new MongoClient(uri, {
 app.get("/", (req, res) => {
   res.send("Welcome to Artify Server");
 });
+
+const verifyToken = (req, res, next) => {
+  console.log("i am from Firebase SDK");
+  console.log(req.method, req.url);
+  next();
+};
 
 const run = async () => {
   try {
@@ -52,7 +70,7 @@ const run = async () => {
     });
 
     // Get single artworks by id for artworks details api
-    app.get("/artwork/:id", async (req, res) => {
+    app.get("/artwork/:id", verifyToken, async (req, res) => {
       const { id } = req.params;
       const result = await artworksCollection.findOne({
         _id: new ObjectId(id),
@@ -61,7 +79,7 @@ const run = async () => {
     });
 
     // Get Users artworks by Email
-    app.get("/my-gallery", async (req, res) => {
+    app.get("/my-gallery", verifyToken, async (req, res) => {
       const email = req.query.email;
       const result = await artworksCollection
         .find({
@@ -72,7 +90,7 @@ const run = async () => {
     });
 
     // Get single users artworks by id for artworks details api
-    app.get("/my-gallery/:id", async (req, res) => {
+    app.get("/my-gallery/:id", verifyToken, async (req, res) => {
       const { id } = req.params;
       const result = await artworksCollection.findOne({
         _id: new ObjectId(id),
@@ -81,7 +99,7 @@ const run = async () => {
     });
 
     // Get Users artworks by Favorites
-    app.get("/my-favorites", async (req, res) => {
+    app.get("/my-favorites", verifyToken, async (req, res) => {
       const email = req.query.email;
 
       const favorites = await favoritesCollection
@@ -100,7 +118,7 @@ const run = async () => {
     });
 
     // Check if artwork is in user's favorites
-    app.get("/favorites/check", async (req, res) => {
+    app.get("/favorites/check", verifyToken, async (req, res) => {
       const { email, artwork_id } = req.query;
 
       if (!email || !artwork_id) {
@@ -119,14 +137,14 @@ const run = async () => {
     });
 
     // Add Artworks API
-    app.post("/add-artworks", async (req, res) => {
+    app.post("/add-artworks", verifyToken, async (req, res) => {
       const newArtwork = req.body;
       const result = await artworksCollection.insertOne(newArtwork);
       res.send({ success: true, result });
     });
 
     // Add Artworks getting data from user
-    app.post("/favorites", async (req, res) => {
+    app.post("/favorites", verifyToken, async (req, res) => {
       const { artwork_id, likes_by } = req.body;
 
       const exists = await favoritesCollection.findOne({
@@ -143,7 +161,7 @@ const run = async () => {
     });
 
     // PUT single users artworks by id for artworks details update api
-    app.put("/my-gallery/edit/:id", async (req, res) => {
+    app.put("/my-gallery/edit/:id", verifyToken, async (req, res) => {
       const { id } = req.params;
       const result = await artworksCollection.updateOne(
         {
@@ -155,7 +173,7 @@ const run = async () => {
     });
 
     // Remove from favorites
-    app.delete("/favorites", async (req, res) => {
+    app.delete("/favorites", verifyToken, async (req, res) => {
       const { email, artwork_id } = req.query;
 
       const result = await favoritesCollection.deleteOne({
@@ -171,7 +189,7 @@ const run = async () => {
     });
 
     // Get single users artworks by id for artworks Delete api
-    app.delete("/my-gallery/:id", async (req, res) => {
+    app.delete("/my-gallery/:id", verifyToken, async (req, res) => {
       const { id } = req.params;
       const result = await artworksCollection.deleteOne({
         _id: new ObjectId(id),
