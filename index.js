@@ -3,7 +3,7 @@ import cors from "cors";
 import { MongoClient, ObjectId, ServerApiVersion } from "mongodb";
 import admin from "firebase-admin";
 // import serviceAccount from "./artify-firebase-adminsdk.json" assert { type: "json" };
-import fs from "fs";
+// import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config();
 const app = express();
@@ -12,14 +12,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8')
+const serviceAccount = JSON.parse(decoded);
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
 
 // Firebase AdminSDK Config
-const serviceAccount = JSON.parse(
-  fs.readFileSync("./artify-firebase-adminsdk.json", "utf8")
-);
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+// const serviceAccount = JSON.parse(
+//   fs.readFileSync("./artify-firebase-adminsdk.json", "utf8")
+// );
+// admin.initializeApp({
+//   credential: admin.credential.cert(serviceAccount),
+// });
 
 const port = process.env.PORT || 3000;
 const uri = process.env.MONGO_URI;
@@ -36,15 +42,24 @@ app.get("/", (req, res) => {
   res.send("Welcome to Artify Server");
 });
 
-const verifyToken = (req, res, next) => {
-  console.log("i am from Firebase SDK");
-  console.log(req.method, req.url);
-  next();
+const verifyToken = async (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if (!authorization) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+  const token = authorization.split(" ")[1];
+
+  try {
+    await admin.auth().verifyIdToken(token);
+    next();
+  } catch (error) {
+    res.status(401).send({ message: "unauthorized access" });
+  }
 };
 
 const run = async () => {
   try {
-    await client.connect();
+    // await client.connect();
 
     const db = client.db("artifyDB");
     const artworksCollection = db.collection("artworks");
@@ -197,7 +212,7 @@ const run = async () => {
       res.send({ success: true, result });
     });
 
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log("You successfully connected to MongoDB!");
   } finally {
     // await client.close();
